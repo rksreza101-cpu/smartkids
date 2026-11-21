@@ -1,0 +1,29 @@
+name: Build APK 2
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Accept licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Build
+        run: |
+          unzip -o smart-kids-android.zip -d proj
+          sed -i 's#<application#<queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries>\n    <application#' proj/app/src/main/AndroidManifest.xml
+          if [ -f greeting.mp3 ]; then cp greeting.mp3 proj/app/src/main/assets/greeting.mp3; fi
+          cd proj
+          gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartKids-APK-v2
+          path: proj/app/build/outputs/apk/debug/app-debug.apk
