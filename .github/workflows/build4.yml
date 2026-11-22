@@ -1,0 +1,33 @@
+name: Build APK 4
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Accept licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Build
+        run: |
+          Z=$(for z in *.zip; do echo "$(git log -1 --format=%ct -- "$z") $z"; done | sort -n | tail -1 | cut -d' ' -f2-)
+          echo "Using: $Z"
+          unzip -o "$Z" -d proj
+          sed -i 's#<application#<queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries>\n    <application#' proj/app/src/main/AndroidManifest.xml
+          for f in *.mp3; do [ -f "$f" ] && cp "$f" proj/app/src/main/assets/; done || true
+          cd proj
+          gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartKids-APK-v4
+          path: proj/app/build/outputs/apk/debug/app-debug.apk
